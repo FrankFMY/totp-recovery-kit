@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "description": "RFC 6238 TOTP, identity-bound secret envelopes and Argon2id recovery codes for TypeScript and Bun.",
   "type": "module",
-  "private": true,
+
   "sideEffects": false,
   "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist", "README.md", "LICENSE", "NOTICE"],
+  "files": ["dist", "docs", "README.md", "SECURITY.md", "CHANGELOG.md", "LICENSE", "NOTICE"],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json",
     "test": "bun test",
-    "verify": "bun run check && bun test && bun run build"
+    "package:check": "node scripts/verify-package-contract.mjs",
+    "verify": "bun run check && bun test && bun run build && bun run package:check"
   },
   "keywords": ["totp", "rfc6238", "mfa", "recovery-codes", "argon2id", "aes-gcm", "typescript"],
   "author": { "name": "Artem Prianishnikov", "email": "Pryanishnikovartem@gmail.com", "url": "https://frankfmy.com" },
@@ -21,5 +22,6 @@
   "bugs": { "url": "https://github.com/FrankFMY/totp-recovery-kit/issues" },
   "engines": { "bun": ">=1.4.0" },
   "packageManager": "bun@1.4.0",
+  "publishConfig": { "access": "public" },
   "devDependencies": { "@types/bun": "1.4.0", "@types/node": "^24.0.0", "typescript": "^6.0.0" }
 }

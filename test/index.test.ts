@@ -33,6 +33,15 @@ describe("TOTP and recovery custody", () => {
     expect(verifyTotpCode({ code: "123456", now: new Date(0), secret: new Uint8Array(20), window: 3 })).toBeNull();
   });
 
+  test("fails closed when replay authority is not a non-negative safe integer", () => {
+    const secret = new TextEncoder().encode("12345678901234567890");
+    const now = new Date(60 * 30_000);
+    const code = generateTotpCode({ now, secret });
+    for (const lastAcceptedStep of [Number.NaN, -1, 59.5, "59"] as unknown as number[]) {
+      expect(verifyTotpCode({ code, lastAcceptedStep, now, secret, window: 0 })).toBeNull();
+    }
+  });
+
   test("round-trips a TOTP secret only under exact identity-bound AES-GCM AAD", () => {
     const keyring = new Map([["v1", Uint8Array.from({ length: 32 }, (_, index) => index + 1)]]);
     const secret = new TextEncoder().encode("twenty-byte-secret!!");

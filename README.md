@@ -96,7 +96,13 @@ See [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md). This is cryptographic cust
 
 ## Package status
 
-The GitHub repository is public. Registry publication is intentionally deferred; the npm package remains marked private until a separate release gate is completed.
+The GitHub repository is public and the package is released on npm from immutable Git tags. Future releases use npm Trusted Publishing.
+
+```bash
+npm install @frankfmy/totp-recovery-kit
+```
+
+The first npm version is bootstrapped once from its clean exact tag with interactive account 2FA using `scripts/bootstrap-first-npm-release.sh`. After registry readback, the repository workflow is configured as the trusted publisher; no long-lived npm token is stored in GitHub.
 
 ## Development
 

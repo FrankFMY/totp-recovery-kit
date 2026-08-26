@@ -101,6 +101,13 @@ export const verifyTotpCode = (input: {
   const window = input.window ?? 1;
   assertTotpParameters({ digits, now: input.now, periodSeconds, secret: input.secret });
   if (!new RegExp(`^[0-9]{${digits}}$`, "u").test(input.code) || !Number.isInteger(window) || window < 0 || window > 2) return null;
+  if (
+    input.lastAcceptedStep !== undefined &&
+    input.lastAcceptedStep !== null &&
+    (!Number.isSafeInteger(input.lastAcceptedStep) || input.lastAcceptedStep < 0)
+  ) {
+    return null;
+  }
 
   const currentStep = totpStep(input.now, periodSeconds);
   const deltas = [0, ...Array.from({ length: window }, (_, index) => [-(index + 1), index + 1]).flat()];
