@@ -33,6 +33,7 @@ export const encodeTotpSecret = (secret: Uint8Array): string => {
 export const decodeTotpSecret = (value: string): Uint8Array => {
   const normalized = value.replace(/[\s-]+/gu, "").toUpperCase();
   if (normalized.length === 0 || !/^[A-Z2-7]+$/u.test(normalized)) throw new TypeError("TOTP secret is invalid");
+  if (![0, 2, 4, 5, 7].includes(normalized.length % 8)) throw new TypeError("TOTP secret is not canonical");
   let buffer = 0;
   let bits = 0;
   const decoded: number[] = [];

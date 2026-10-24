@@ -1,35 +1,24 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const target = mkdtempSync(join(tmpdir(), "totp-recovery-kit-consumer-"));
-
+const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const target = mkdtempSync(join(tmpdir(), "totp-consumer-"));
 try {
-  const output = execFileSync("npm", ["pack", "--silent", "--pack-destination", target], {
-    cwd: root,
-    encoding: "utf8",
-  }).trim();
-  const tarball = join(target, output.split("\n").at(-1));
-  writeFileSync(join(target, "package.json"), '{"name":"totp-recovery-kit-consumer","private":true,"type":"module"}\n');
-  execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", tarball], {
-    cwd: target,
-    stdio: "pipe",
-  });
-  writeFileSync(
-    join(target, "check.mjs"),
-    [
-      'import { generateTotpCode, verifyTotpCode } from "@frankfmy/totp-recovery-kit";',
-      'const secret = new TextEncoder().encode("12345678901234567890");',
-      'const now = new Date(59_000);',
-      'const code = generateTotpCode({ digits: 8, now, secret });',
-      'if (code !== "94287082" || verifyTotpCode({ code, digits: 8, lastAcceptedStep: Number.NaN, now, secret }) !== null) process.exit(1);',
-      'console.log("isolated TOTP package consumer: PASS");',
-      "",
-    ].join("\n"),
-  );
-  execFileSync(process.execPath, [join(target, "check.mjs")], { cwd: target, stdio: "inherit" });
-} finally {
-  rmSync(target, { force: true, recursive: true });
-}
+  const spec = process.env.CONSUMER_PACKAGE ?? join(target, execFileSync("npm", ["pack", "--silent", "--pack-destination", target], { cwd: root, encoding: "utf8" }).trim().split("\n").at(-1));
+  writeFileSync(join(target, "package.json"), JSON.stringify({ name: "totp-consumer", private: true, type: "module" }));
+  execFileSync("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", spec], { cwd: target, stdio: "pipe" });
+  const packageRoot = join(target, "node_modules", ...manifest.name.split("/"));
+  const installed = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+  for (const key of ["name", "version", "license"]) if (installed[key] !== manifest[key]) throw new Error(`metadata mismatch: ${key}`);
+  for (const path of ["LICENSE", "NOTICE", "SECURITY.md", ...Object.values(installed.exports).flatMap(value => Object.values(value))]) if (!existsSync(join(packageRoot, path))) throw new Error(`missing distribution file: ${path}`);
+  for (const file of ["consumer.mjs", "consumer-types.mts"]) copyFileSync(join(root, "test", file), join(target, file));
+  writeFileSync(join(target, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, noEmit: true, target: "ES2022", module: "NodeNext", moduleResolution: "NodeNext", types: [] }, include: ["*.mts"] }));
+  execFileSync("bun", [join(target, "consumer.mjs")], { cwd: target, stdio: "inherit" });
+  execFileSync(process.execPath, [join(root, "node_modules/typescript/bin/tsc"), "-p", join(target, "tsconfig.json")], { cwd: target, stdio: "inherit" });
+  execFileSync("npm", ["ls", "--all"], { cwd: target, stdio: "inherit" });
+  execFileSync("npm", ["audit", "--omit=dev", "--audit-level=high"], { cwd: target, stdio: "inherit" });
+  console.log("installed positive/negative TypeScript contract: PASS");
+} finally { rmSync(target, { recursive: true, force: true }); }

@@ -26,6 +26,12 @@ describe("TOTP and recovery custody", () => {
     expect(verifyTotpCode({ code, lastAcceptedStep: accepted?.step, now, secret, window: 1 })).toBeNull();
   });
 
+  test("rejects zero-extended non-canonical Base32 lengths", () => {
+    expect(() => decodeTotpSecret("AAA")).toThrow("canonical");
+    expect(() => decodeTotpSecret("AAAAAA")).toThrow("canonical");
+    expect([...decodeTotpSecret("aa")]).toEqual([0]);
+  });
+
   test("rejects non-canonical Base32 and invalid protocol parameters", () => {
     expect(() => decodeTotpSecret("A")).toThrow("canonical");
     expect(() => generateTotpCode({ digits: 5, now: new Date(0), secret: new Uint8Array(20) })).toThrow("digits");
