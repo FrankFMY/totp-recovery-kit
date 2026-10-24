@@ -22,20 +22,20 @@ I built this package for first-party authentication systems that need explicit c
 ## TOTP
 
 ```ts
+import { randomBytes } from "node:crypto";
 import {
-  decodeTotpSecret,
   generateTotpCode,
   verifyTotpCode,
 } from "@frankfmy/totp-recovery-kit";
 
-const secret = decodeTotpSecret(manualKey);
+const secret = randomBytes(20); // fresh volatile demonstration secret; provision/persist separately
 const now = new Date();
 const code = generateTotpCode({ now, secret });
 const accepted = verifyTotpCode({
   code,
   now,
   secret,
-  lastAcceptedStep: storedLastAcceptedStep,
+  lastAcceptedStep: null, // load the current persisted step inside your transaction
   window: 1,
 });
 
@@ -47,13 +47,17 @@ Persist `accepted.step` atomically with the protected action or proof issuance. 
 ## Secret envelope
 
 ```ts
+import { randomBytes } from "node:crypto";
 import {
   decryptTotpSecret,
   encryptTotpSecret,
 } from "@frankfmy/totp-recovery-kit";
 
+const accountId = "example-account";
+const factorId = "example-factor";
+const secret = randomBytes(20);
 const keyring = new Map([
-  ["v1", encryptionKeyBytes],
+  ["v1", randomBytes(32)], // volatile example; production keys belong in external key custody
 ]);
 
 const envelope = encryptTotpSecret({
@@ -84,25 +88,26 @@ import {
 } from "@frankfmy/totp-recovery-kit";
 
 const codes = generateRecoveryCodes();
-const hashes = await Promise.all(codes.map(hashRecoveryCode));
-const valid = await verifyRecoveryCode(submittedCode, storedHash);
+const hashes: string[] = [];
+for (const code of codes) hashes.push(await hashRecoveryCode(code));
+const valid = await verifyRecoveryCode(codes[0]!, hashes[0]!); // demonstration only
 ```
 
 Only hashes belong in durable storage. One-time consumption, set replacement, session binding, audit, and concurrent double-use prevention remain database-transaction responsibilities.
 
 ## Security boundary
 
-See [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md). This is cryptographic custody plumbing, not a complete authentication service.
+See [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md). This is cryptographic custody plumbing, not a complete authentication service or a claimed independent cryptographic audit. TOTP supports SHA-1 only (not the optional SHA-256/SHA-512 modes), zero epoch, 6–8 digits and 15–120 second periods; the verifier window is 0–2 steps. Noncanonical zero-extended Base32 lengths are rejected after case/whitespace/hyphen normalization. Provision unique high-entropy secrets and rate-limit attempts. Recovery hashing uses the supported Bun Argon2id implementation/default cost policy; budget memory and concurrency for hashing rather than creating an unbounded batch.
 
 ## Package status
 
-The GitHub repository is public and the package is released on npm from immutable Git tags. Future releases use npm Trusted Publishing.
+ESM on Bun 1.4+ is the supported full runtime: recovery hashing uses `Bun.password`. Node-only/browser use of the complete API is not supported. [npm package](https://www.npmjs.com/package/@frankfmy/totp-recovery-kit) · [source](https://github.com/FrankFMY/totp-recovery-kit).
 
 ```bash
 npm install @frankfmy/totp-recovery-kit
 ```
 
-The first npm version is bootstrapped once from its clean exact tag with interactive account 2FA using `scripts/bootstrap-first-npm-release.sh`. After registry readback, the repository workflow is configured as the trusted publisher; no long-lived npm token is stored in GitHub.
+Use the registry command when the desired version is public. Otherwise use the source checkout below, run `bun run build && npm pack`, and install the tarball. Packing builds the package; automatic release-triggered registry publication is not enabled.
 
 ## Development
 
@@ -119,7 +124,11 @@ bun run verify
 
 - GitHub: https://github.com/FrankFMY
 - Website: https://frankfmy.com
-- Email: Pryanishnikovartem@gmail.com
+- Email: Pryanishnikovartem@gmail.com · frankfmy@proton.me
+- Telegram: https://t.me/FrankFMY
+- LinkedIn: https://www.linkedin.com/in/frankfmy/
+- X: https://x.com/FrankFMY
+- npm: https://www.npmjs.com/~frankfmy
 
 ## License
 
